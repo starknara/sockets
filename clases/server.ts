@@ -5,10 +5,7 @@ import http from 'http';
 import { UsuariosLista } from './usuario-lista';
 import { Usuario } from './usuario';
 
-//creando la clase servidor
 export default class Server{
-
-   
 
     public app:express.Application;
     public port:Number;
@@ -27,9 +24,11 @@ export default class Server{
         this.io = socketIO(this.httpServer);
         this.escucharSockets();
     }
- //programando getter de la unica instancia de la clase
- //(patron de iseño SINGLETON)
+    //PROGRAMANDO GETTER
+    //DE LA UNICA INSTANCIA DE LA CLASE
+    //PATRON DE DISEÑO SINGLETON
     private static _instance:Server;
+
     public static get instance(){
         if(this._instance){
             return this._instance;
@@ -39,18 +38,19 @@ export default class Server{
         }
     }
 
-  
-// funcion para escuchar las conexiones 
     private escucharSockets(){
         console.log("Escuchando conexiones o sockets");
         this.io.on('connection',cliente=>{
             console.log("nuevo cliente conectado",cliente.id);
             const usuario = new Usuario(cliente.id);
             this.usuariosConectados.agregar(usuario);
+            
+
             //CUANDO EL CLIENTE SE DESCONECTA
             cliente.on('disconnect',()=>{
                 console.log("nuevo cliente desconectado",cliente.id);
                 this.usuariosConectados.borrarUsuario(cliente.id);
+                this.io.emit('usuarios-activos',this.usuariosConectados.getLista());
             });
             cliente.on('mensaje',(payload:any)=>{
                 console.log("nuevo mensaje ",payload);
@@ -58,11 +58,16 @@ export default class Server{
             });
             cliente.on("configurar-usuario",(payload:any,callback:Function)=>{
                 this.usuariosConectados.actualizarNombre(cliente.id,payload.nombre);
+                this.io.emit('usuarios-activos',this.usuariosConectados.getLista());
                 callback({
                     ok:true,
                     mensaje:`Usuario ${payload.nombre} configurado`
                 });
-            })
+            });
+
+            cliente.on('obtener-usuarios',()=>{
+                this.io.in(cliente.id).emit('usuarios-activos',this.usuariosConectados.getLista());
+            });
         });
     }
 
